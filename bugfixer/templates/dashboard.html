@@ -110,7 +110,83 @@
             transition: background-color 0.3s;
             margin-bottom: 10px;
         }
-        .file-upload:hover { background: #e9ecef; }
+        .file-upload:hover {
+            background: #e9ecef;
+            border-color: #2980b9;
+        }
+        .file-upload.dragover {
+            background: #d4edda;
+            border-color: #27ae60;
+            border-style: solid;
+        }
+        .progress-container {
+            margin: 15px 0;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 5px;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3498db, #2ecc71);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .progress-text {
+            text-align: center;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .fix-item {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin: 10px 0;
+            padding: 15px;
+            background: #f8f9fa;
+        }
+        .fix-item.selected {
+            border-color: #3498db;
+            background: #e3f2fd;
+        }
+        .fix-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .fix-confidence {
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .confidence-high { background: #d4edda; color: #155724; }
+        .confidence-medium { background: #fff3cd; color: #856404; }
+        .confidence-low { background: #f8d7da; color: #721c24; }
+        .code-diff {
+            background: #f1f1f1;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        .code-before { background: #ffebee; }
+        .code-after { background: #e8f5e8; }
+        .fix-actions {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .btn-success { background: #27ae60; }
+        .btn-secondary { background: #95a5a6; }
+        .btn-danger { background: #e74c3c; }
+        .btn-success:hover { background: #229954; }
+        .btn-secondary:hover { background: #7f8c8d; }
+        .btn-danger:hover { background: #c0392b; }
         .status-section {
             background: #e8f5e8;
             border-left-color: #27ae60;
@@ -170,7 +246,7 @@
     <div class="container">
         <div class="header">
             <h1>🔧 Log-Based Bugfixer</h1>
-            <p>Analyze logs, find bugs, and create automated fixes</p>
+            <p>Analyze application logs, identify issues, and get AI-powered insights with detailed fix suggestions - completely free!</p>
         </div>
         
         <div class="main-content">
@@ -216,14 +292,26 @@
                     
                     <div class="form-group">
                         <label for="githubToken">GitHub Personal Access Token *</label>
-                        <input type="password" id="githubToken" name="githubToken" required 
+                        <input type="password" id="githubToken" name="githubToken" required
                                placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
-                        <small style="color: #666;">Your token is used only for this analysis and not stored</small>
+                        <small style="color: #666;">For accessing your repository (used only for this analysis)</small>
                     </div>
+
+
                     
                     <div class="form-group">
                         <label for="logContent">Application Logs *</label>
-                        <textarea id="logContent" name="logContent" required 
+
+                        <!-- File Upload Area -->
+                        <div class="file-upload" id="fileUpload">
+                            <p>📁 <strong>Upload Log File</strong></p>
+                            <p>Click here to browse files or drag & drop log files</p>
+                            <p><small>Supported formats: .log, .txt, or any text file</small></p>
+                        </div>
+                        <input type="file" id="logFile" accept=".log,.txt,.text" style="display: none;">
+
+                        <!-- Text Area for Manual Input -->
+                        <textarea id="logContent" name="logContent" required
                                   placeholder="Paste your application logs here...
 
 Example log entries:
@@ -236,6 +324,9 @@ ZeroDivisionError: division by zero
   File '/app/user_service.py', line 45, in get_user
     user_id = request.data['user_id']
 KeyError: 'user_id'"></textarea>
+                        <small style="color: #666; margin-top: 5px; display: block;">
+                            💡 <strong>Tip:</strong> You can either upload a log file above OR paste log content directly in this text area
+                        </small>
                     </div>
                     
                     <div class="form-group">
@@ -259,10 +350,26 @@ KeyError: 'user_id'"></textarea>
             <div class="section status-section" id="statusSection" style="display: none;">
                 <h2>📊 Analysis Status</h2>
                 <div id="statusDisplay" class="status-display">Ready to start analysis...</div>
+
+                <!-- Progress Bar -->
+                <div class="progress-container" id="progressContainer" style="display: none;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">0%</div>
+                </div>
+
                 <div class="loading" id="loadingIndicator">
                     <div class="spinner"></div>
-                    <p>Analyzing logs and generating fixes...</p>
+                    <p id="loadingMessage">Analyzing logs and generating fixes...</p>
                 </div>
+            </div>
+
+            <!-- Issues Report Section -->
+            <div class="section" id="issuesSection" style="display: none;">
+                <h2>📋 Issues Found</h2>
+                <p>GitHub Copilot analysis of issues found in your logs:</p>
+                <div id="issuesList"></div>
             </div>
             
             <!-- Results Section -->
@@ -311,13 +418,50 @@ KeyError: 'user_id'"></textarea>
         });
 
         function handleFile(file) {
+            // Validate file type
+            const allowedTypes = ['.log', '.txt', '.text'];
+            const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+
+            if (!allowedTypes.includes(fileExtension) && !file.type.startsWith('text/')) {
+                fileUpload.innerHTML = `<p>❌ <strong>Invalid file type</strong></p><p><small>Please upload .log, .txt files or text files only</small></p>`;
+                return;
+            }
+
+            // Check file size (max 10MB)
+            if (file.size > 10 * 1024 * 1024) {
+                fileUpload.innerHTML = `<p>❌ <strong>File too large</strong></p><p><small>Please upload files smaller than 10MB</small></p>`;
+                return;
+            }
+
+            // Show loading state
+            fileUpload.innerHTML = `<p>⏳ <strong>Loading ${file.name}...</strong></p><p><small>Reading file content...</small></p>`;
+
             const reader = new FileReader();
             reader.onload = (e) => {
-                logContent.value = e.target.result;
-                fileUpload.innerHTML = `<p>✅ File loaded: ${file.name}</p><p><small>Content loaded into text area below</small></p>`;
+                const content = e.target.result;
+                logContent.value = content;
+
+                // Count lines for feedback
+                const lineCount = content.split('\n').length;
+                const sizeKB = Math.round(file.size / 1024);
+
+                fileUpload.innerHTML = `
+                    <p>✅ <strong>File loaded successfully!</strong></p>
+                    <p><small>📄 ${file.name} (${sizeKB} KB, ${lineCount} lines)</small></p>
+                    <p><small>Content loaded into text area below. You can edit it if needed.</small></p>
+                `;
             };
+
+            reader.onerror = () => {
+                fileUpload.innerHTML = `<p>❌ <strong>Error reading file</strong></p><p><small>Please try again or paste content manually</small></p>`;
+            };
+
             reader.readAsText(file);
         }
+
+        // Global variables
+        let currentAnalysisId = null;
+        let progressInterval = null;
 
         // Form submission
         document.getElementById('analysisForm').addEventListener('submit', async function(e) {
@@ -328,14 +472,17 @@ KeyError: 'user_id'"></textarea>
                 github_repo_url: formData.get('githubRepoUrl'),
                 github_token: formData.get('githubToken'),
                 log_content: formData.get('logContent'),
-                branch_name: formData.get('branchName'),
-                create_pr: formData.get('createPR') === 'on'
+                branch_name: formData.get('branchName') || 'main',
+                create_pr: formData.get('createPR') === 'on' || false
             };
 
-            // Show status section
+            // Show status section and reset UI
             document.getElementById('statusSection').style.display = 'block';
+            document.getElementById('fixPreviewSection').style.display = 'none';
+            document.getElementById('progressContainer').style.display = 'block';
             document.getElementById('loadingIndicator').classList.add('show');
             document.getElementById('statusDisplay').textContent = 'Starting analysis...';
+            updateProgress(0, 'Initializing...');
 
             try {
                 const response = await fetch('/api/analyze', {
@@ -349,19 +496,184 @@ KeyError: 'user_id'"></textarea>
                 const result = await response.json();
 
                 if (response.ok) {
+                    currentAnalysisId = result.analysis_id;
                     document.getElementById('statusDisplay').textContent =
-                        `Analysis started successfully!\nAnalysis ID: ${result.analysis_id}\nStatus: ${result.status}`;
+                        `Analysis started successfully! ID: ${result.analysis_id}`;
+
+                    // Start polling for progress updates
+                    startProgressPolling(result.analysis_id);
                 } else {
                     document.getElementById('statusDisplay').textContent =
                         `Error: ${result.detail || 'Unknown error occurred'}`;
+                    document.getElementById('loadingIndicator').classList.remove('show');
                 }
             } catch (error) {
                 document.getElementById('statusDisplay').textContent =
                     `Network error: ${error.message}`;
-            } finally {
                 document.getElementById('loadingIndicator').classList.remove('show');
             }
         });
+
+        // Progress polling
+        function startProgressPolling(analysisId) {
+            if (progressInterval) {
+                clearInterval(progressInterval);
+            }
+
+            progressInterval = setInterval(async () => {
+                try {
+                    const response = await fetch(`/api/progress/${analysisId}`);
+                    if (response.ok) {
+                        const progress = await response.json();
+                        updateProgressDisplay(progress);
+
+                        // Check if analysis is complete and awaiting review
+                        if (progress.status === 'awaiting_review') {
+                            clearInterval(progressInterval);
+                            await loadFixPreview(analysisId);
+                        } else if (progress.status === 'completed' || progress.status === 'error') {
+                            clearInterval(progressInterval);
+                            document.getElementById('loadingIndicator').classList.remove('show');
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error polling progress:', error);
+                }
+            }, 1000); // Poll every second
+        }
+
+        // Update progress display
+        function updateProgressDisplay(progress) {
+            const statusDisplay = document.getElementById('statusDisplay');
+            const loadingMessage = document.getElementById('loadingMessage');
+
+            statusDisplay.textContent = progress.message || 'Processing...';
+            loadingMessage.textContent = progress.message || 'Processing...';
+
+            updateProgress(progress.progress || 0, progress.message || 'Processing...');
+
+            // Add detailed info if available
+            if (progress.errors_found > 0) {
+                statusDisplay.textContent += `\n📋 Errors found: ${progress.errors_found}`;
+            }
+            if (progress.issues_analyzed > 0) {
+                statusDisplay.textContent += `\n🔍 Issues analyzed: ${progress.issues_analyzed}`;
+            }
+
+            // Show issues when analysis is complete
+            if (progress.status === 'completed' && progress.issues_found) {
+                document.getElementById('issuesSection').style.display = 'block';
+                displayIssues(progress.issues_found);
+            }
+        }
+
+        // Update progress bar
+        function updateProgress(percent, message) {
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+
+            progressFill.style.width = `${percent}%`;
+            progressText.textContent = `${Math.round(percent)}%`;
+        }
+
+        // Removed old fix preview functions - no longer needed for analysis-only workflow
+
+
+
+        // Utility function to escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Removed old fix action handlers - no longer needed for analysis-only workflow
+
+        // Removed applySelectedFixes function - no longer needed for analysis-only workflow
+
+        // Display issues found by Copilot analysis
+        function displayIssues(issues) {
+            const issuesList = document.getElementById('issuesList');
+            issuesList.innerHTML = '';
+
+            if (!issues || issues.length === 0) {
+                issuesList.innerHTML = '<p>No issues found in the analysis.</p>';
+                return;
+            }
+
+            issues.forEach((issue, index) => {
+                const issueDiv = document.createElement('div');
+                issueDiv.className = 'issue-item';
+                issueDiv.style.cssText = `
+                    border: 1px solid #ddd;
+                    border-radius: 8px;
+                    padding: 15px;
+                    margin-bottom: 15px;
+                    background: #f8f9fa;
+                `;
+
+                const originalError = issue.original_error;
+                const aiAnalysis = issue.ai_analysis;
+
+                issueDiv.innerHTML = `
+                    <h4 style="color: #dc3545; margin-top: 0;">
+                        🐛 ${originalError.error_type}
+                        <span style="font-size: 0.8em; color: #6c757d;">#${index + 1}</span>
+                    </h4>
+
+                    <div style="margin-bottom: 10px;">
+                        <strong>📁 File:</strong> ${aiAnalysis.file_location || originalError.file_path || 'Unknown'}
+                        ${aiAnalysis.line_number ? `<strong> | Line:</strong> ${aiAnalysis.line_number}` : ''}
+                    </div>
+
+                    <div style="margin-bottom: 10px;">
+                        <strong>💬 Error Message:</strong>
+                        <code style="background: #e9ecef; padding: 2px 4px; border-radius: 3px;">
+                            ${originalError.error_message}
+                        </code>
+                    </div>
+
+                    <div style="margin-bottom: 10px;">
+                        <strong>🤖 AI Analysis:</strong>
+                        <div style="background: #e7f3ff; padding: 10px; border-radius: 5px; margin-top: 5px;">
+                            <strong>Root Cause:</strong> ${aiAnalysis.root_cause}<br>
+                            <strong>Severity:</strong> <span style="color: ${aiAnalysis.severity === 'High' || aiAnalysis.severity === 'Critical' ? '#dc3545' : aiAnalysis.severity === 'Medium' ? '#ffc107' : '#28a745'}">${aiAnalysis.severity}</span><br>
+                            <strong>Issue Description:</strong> ${aiAnalysis.issue_description}<br>
+                            <strong>Fix Approach:</strong> ${aiAnalysis.fix_approach.replace(/\n/g, '<br>')}<br>
+                            <strong>Confidence:</strong> ${(aiAnalysis.confidence * 100).toFixed(0)}%
+                        </div>
+                    </div>
+
+                    ${aiAnalysis.code_suggestion ? `
+                        <div style="margin-bottom: 10px;">
+                            <strong>💡 Code Suggestion:</strong>
+                            <pre style="background: #f8f9fa; padding: 10px; border-radius: 5px; overflow-x: auto; font-size: 0.9em; margin-top: 5px; white-space: pre-wrap;">${aiAnalysis.code_suggestion}</pre>
+                        </div>
+                    ` : ''}
+
+                    ${aiAnalysis.prevention_tips ? `
+                        <div style="margin-bottom: 10px;">
+                            <strong>🛡️ Prevention Tips:</strong>
+                            <div style="background: #d4edda; padding: 8px; border-radius: 5px; margin-top: 5px; border-left: 4px solid #28a745;">
+                                ${aiAnalysis.prevention_tips}
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    ${originalError.traceback ? `
+                        <details style="margin-top: 10px;">
+                            <summary style="cursor: pointer; color: #007bff;">📋 View Traceback</summary>
+                            <pre style="background: #f8f9fa; padding: 10px; border-radius: 5px; overflow-x: auto; font-size: 0.9em; margin-top: 5px;">${originalError.traceback}</pre>
+                        </details>
+                    ` : ''}
+                `;
+
+                issuesList.appendChild(issueDiv);
+            });
+        }
+
     </script>
+
+
 </body>
 </html>

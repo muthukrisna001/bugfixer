@@ -1,0 +1,51 @@
+2024-01-15 10:30:45 ERROR: ZeroDivisionError: division by zero
+  File "/app/calculator.py", line 25, in divide
+    result = a / b
+ZeroDivisionError: division by zero
+
+2024-01-15 10:31:12 ERROR: KeyError: 'user_id'
+  File "/app/user_service.py", line 45, in get_user
+    user_id = request.data['user_id']
+KeyError: 'user_id'
+
+2024-01-15 10:32:18 ERROR: IndexError: list index out of range
+  File "/app/data_processor.py", line 67, in process_items
+    item = items[index]
+IndexError: list index out of range
+
+2024-01-15 10:33:25 ERROR: ValueError: invalid literal for int() with base 10: 'abc'
+  File "/app/converter.py", line 12, in convert_to_int
+    return int(value)
+ValueError: invalid literal for int() with base 10: 'abc'
+
+2024-01-15 10:34:32 ERROR: TypeError: unsupported operand type(s) for +: 'int' and 'str'
+  File "/app/math_operations.py", line 89, in add_values
+    result = num1 + num2
+TypeError: unsupported operand type(s) for +: 'int' and 'str'
+
+2024-01-15 10:35:18 ERROR: AttributeError: 'NoneType' object has no attribute 'name'
+  File "/app/user_manager.py", line 34, in get_user_name
+    return user.name
+AttributeError: 'NoneType' object has no attribute 'name'
+
+2024-01-15 10:36:45 ERROR: JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+  File "/app/json_parser.py", line 56, in parse_data
+    data = json.loads(json_string)
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+2024-01-15 10:37:22 INFO: Application started successfully
+2024-01-15 10:37:23 DEBUG: Database connection established
+2024-01-15 10:37:24 WARNING: High memory usage detected
+
+2024-01-15 10:38:15 ERROR: ImportError: No module named 'missing_module'
+  File "/app/importer.py", line 5, in <module>
+    import missing_module
+ImportError: No module named 'missing_module'
+
+2024-01-15 10:39:33 ERROR: NameError: name 'undefined_variable' is not defined
+  File "/app/variables.py", line 78, in process_data
+    result = undefined_variable * 2
+NameError: name 'undefined_variable' is not defined
+
+2024-01-15 10:40:12 INFO: Processing completed successfully
+2024-01-15 10:40:13 DEBUG: Cleanup operations finished

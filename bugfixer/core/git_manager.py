@@ -5,6 +5,8 @@ Handles repository operations, branch creation, and PR management
 import os
 import shutil
 import tempfile
+import stat
+import time
 from typing import Optional, Dict, Any
 from git import Repo, GitCommandError
 import httpx
@@ -20,35 +22,130 @@ class GitManager:
         self.git_user_name = config("GIT_USER_NAME", default="Bugfixer Bot")
         self.git_user_email = config("GIT_USER_EMAIL", default="bugfixer@example.com")
         self.temp_dir = tempfile.mkdtemp(prefix="bugfixer_")
+        self.cloned_repos = []  # Track cloned repositories for cleanup
     
-    async def clone_repository(self, repo_url: str, branch: str = "main") -> str:
+    def _remove_readonly(self, func, path, _):
+        """Remove readonly files on Windows"""
+        try:
+            os.chmod(path, stat.S_IWRITE)
+            func(path)
+        except Exception as e:
+            print(f"Warning: Could not remove {path}: {e}")
+
+    async def clone_repository(self, repo_url: str, github_token: str, branch: str = "main") -> str:
         """
-        Clone a repository to a temporary directory
+        Clone a repository to a temporary directory with proper Windows handling
         """
         try:
             # Create a unique directory for this repo
             repo_name = repo_url.split('/')[-1].replace('.git', '')
-            repo_path = os.path.join(self.temp_dir, repo_name)
-            
+            timestamp = str(int(time.time()))
+            repo_path = os.path.join(self.temp_dir, f"{repo_name}_{timestamp}")
+
+            # Clean up existing directory if it exists
             if os.path.exists(repo_path):
-                shutil.rmtree(repo_path)
-            
+                print(f"Cleaning up existing directory: {repo_path}")
+                shutil.rmtree(repo_path, onerror=self._remove_readonly)
+                time.sleep(0.5)  # Give Windows time to release file handles
+
+            # Prepare repository URL with token for authentication
+            if github_token and github_token != "ghp_test_token_for_demo_only":
+                if repo_url.startswith('https://github.com/'):
+                    auth_url = repo_url.replace('https://github.com/', f'https://{github_token}@github.com/')
+                else:
+                    auth_url = repo_url
+            else:
+                auth_url = repo_url
+
+            print(f"Cloning repository to: {repo_path}")
+
             # Clone the repository
-            repo = Repo.clone_from(repo_url, repo_path)
-            
+            repo = Repo.clone_from(auth_url, repo_path, depth=1)  # Shallow clone for faster operation
+
             # Configure git user
             with repo.config_writer() as git_config:
                 git_config.set_value("user", "name", self.git_user_name)
                 git_config.set_value("user", "email", self.git_user_email)
-            
+
+            print(f"Repository cloned successfully to: {repo_path}")
+            self.cloned_repos.append(repo_path)  # Track for cleanup
             return repo_path
-            
+
         except GitCommandError as e:
             print(f"Git clone failed: {e}")
-            raise
+            raise Exception(f"Failed to clone repository: {str(e)}")
+
+    async def create_branch(self, repo_path: str, branch_name: str) -> bool:
+        """Create a new branch in the repository"""
+        try:
+            if not os.path.exists(repo_path):
+                raise Exception(f"Repository path does not exist: {repo_path}")
+
+            repo = Repo(repo_path)
+
+            # Configure git user
+            with repo.config_writer() as git_config:
+                git_config.set_value("user", "name", self.git_user_name)
+                git_config.set_value("user", "email", self.git_user_email)
+
+            # Create and checkout new branch
+            new_branch = repo.create_head(branch_name)
+            new_branch.checkout()
+
+            print(f"✅ Created and checked out branch: {branch_name}")
+            return True
+
+        except Exception as e:
+            print(f"❌ Branch creation failed: {e}")
+            return False
+
+    async def commit_changes(self, repo_path: str, commit_message: str) -> bool:
+        """Commit changes to the repository"""
+        try:
+            if not os.path.exists(repo_path):
+                raise Exception(f"Repository path does not exist: {repo_path}")
+
+            repo = Repo(repo_path)
+
+            # Add all changes
+            repo.git.add(A=True)
+
+            # Check if there are changes to commit
+            if not repo.is_dirty() and not repo.untracked_files:
+                print("⚠️ No changes to commit")
+                return True
+
+            # Commit changes
+            repo.index.commit(commit_message)
+            print(f"✅ Committed changes: {commit_message[:50]}...")
+            return True
+
+        except Exception as e:
+            print(f"❌ Commit failed: {e}")
+            return False
         except Exception as e:
             print(f"Repository clone failed: {e}")
-            raise
+            raise Exception(f"Repository clone error: {str(e)}")
+
+    def cleanup_repositories(self):
+        """Clean up all cloned repositories"""
+        for repo_path in self.cloned_repos:
+            try:
+                if os.path.exists(repo_path):
+                    print(f"Cleaning up repository: {repo_path}")
+                    shutil.rmtree(repo_path, onerror=self._remove_readonly)
+            except Exception as e:
+                print(f"Warning: Could not clean up {repo_path}: {e}")
+        self.cloned_repos.clear()
+
+    def __del__(self):
+        """Cleanup when object is destroyed"""
+        try:
+            self.cleanup_repositories()
+            if os.path.exists(self.temp_dir):
+                shutil.rmtree(self.temp_dir, onerror=self._remove_readonly)
+        except Exception as e:
+            print(f"Warning: Cleanup failed: {e}")
     
     async def create_fix_branch(self, repo_path: str, bug_report: BugReport) -> str:
         """
