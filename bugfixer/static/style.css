@@ -1,0 +1,23 @@
+/* Additional styles for the bugfixer interface */
+.highlight {
+    background-color: #fff3cd;
+    padding: 0.25rem 0.5rem;
+    border-radius: 3px;
+}
+
+.error-type {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.error-type.zero-division { background: #f8d7da; color: #721c24; }
+.error-type.key-error { background: #fff3cd; color: #856404; }
+.error-type.index-error { background: #d1ecf1; color: #0c5460; }
+.error-type.value-error { background: #d4edda; color: #155724; }
+.error-type.type-error { background: #e2e3e5; color: #383d41; }
+.error-type.attribute-error { background: #ffeaa7; color: #6c5ce7; }
+.error-type.json-decode-error { background: #fab1a0; color: #e17055; }

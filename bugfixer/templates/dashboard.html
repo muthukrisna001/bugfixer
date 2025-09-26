@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔧 Log-Based Bugfixer Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .header p { font-size: 1.2em; opacity: 0.9; }
+        .main-content { padding: 40px; }
+        .section {
+            margin-bottom: 40px;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 5px solid #3498db;
+        }
+        .section h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+        .instructions {
+            background: #e8f5e8;
+            border-left-color: #27ae60;
+            margin-bottom: 30px;
+        }
+        .instructions ol { margin-left: 20px; }
+        .instructions li { margin-bottom: 10px; line-height: 1.6; }
+        .instructions code {
+            background: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            color: #e74c3c;
+        }
+        .form-group { margin-bottom: 20px; }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e8ed;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        .form-group input:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        .form-group textarea {
+            min-height: 200px;
+            resize: vertical;
+            font-family: 'Courier New', monospace;
+        }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .checkbox-group input[type="checkbox"] { width: auto; }
+        .btn {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(52, 152, 219, 0.3);
+        }
+        .file-upload {
+            border: 2px dashed #3498db;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            background: #f8f9fa;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-bottom: 10px;
+        }
+        .file-upload:hover { background: #e9ecef; }
+        .status-section {
+            background: #e8f5e8;
+            border-left-color: #27ae60;
+        }
+        .status-display {
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        .loading.show { display: block; }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .step {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border: 1px solid #e1e8ed;
+        }
+        .step h4 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        .footer {
+            background: #2c3e50;
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+        .footer a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        .footer a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔧 Log-Based Bugfixer</h1>
+            <p>Analyze logs, find bugs, and create automated fixes</p>
+        </div>
+        
+        <div class="main-content">
+            <!-- GitHub Setup Instructions -->
+            <div class="section instructions">
+                <h2>📋 Setup Instructions</h2>
+                <p>Follow these steps to set up GitHub access for automated bug fixing:</p>
+                
+                <div class="step">
+                    <h4>Step 1: Create GitHub Personal Access Token</h4>
+                    <ol>
+                        <li>Go to <a href="https://github.com/settings/tokens" target="_blank">GitHub Settings → Developer settings → Personal access tokens</a></li>
+                        <li>Click "Generate new token (classic)"</li>
+                        <li>Give it a descriptive name like "Bugfixer Token"</li>
+                        <li>Select the following scopes:</li>
+                        <ul>
+                            <li><code>repo</code> - Full control of private repositories</li>
+                            <li><code>workflow</code> - Update GitHub Action workflows</li>
+                        </ul>
+                        <li>Click "Generate token" and copy it immediately!</li>
+                    </ol>
+                </div>
+                
+                <div class="step">
+                    <h4>Step 2: Prepare Your Repository & Logs</h4>
+                    <ol>
+                        <li>Ensure your repository is accessible with the token</li>
+                        <li>Make sure the main branch is named <code>main</code></li>
+                        <li>Have your application logs ready (error logs, exception traces, etc.)</li>
+                    </ol>
+                </div>
+            </div>
+            
+            <!-- Analysis Form -->
+            <div class="section">
+                <h2>🚀 Start Log Analysis</h2>
+                <form id="analysisForm">
+                    <div class="form-group">
+                        <label for="githubRepoUrl">GitHub Repository URL *</label>
+                        <input type="url" id="githubRepoUrl" name="githubRepoUrl" required 
+                               placeholder="https://github.com/username/repository.git">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="githubToken">GitHub Personal Access Token *</label>
+                        <input type="password" id="githubToken" name="githubToken" required 
+                               placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+                        <small style="color: #666;">Your token is used only for this analysis and not stored</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="logContent">Application Logs *</label>
+                        <textarea id="logContent" name="logContent" required 
+                                  placeholder="Paste your application logs here...
+
+Example log entries:
+2024-01-15 10:30:45 ERROR: ZeroDivisionError: division by zero
+  File '/app/calculator.py', line 25, in divide
+    result = a / b
+ZeroDivisionError: division by zero
+
+2024-01-15 10:31:12 ERROR: KeyError: 'user_id'
+  File '/app/user_service.py', line 45, in get_user
+    user_id = request.data['user_id']
+KeyError: 'user_id'"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="branchName">Base Branch Name</label>
+                        <input type="text" id="branchName" name="branchName" value="main" 
+                               placeholder="main">
+                    </div>
+                    
+                    <div class="form-group">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="createPR" name="createPR" checked>
+                            <label for="createPR">Create Pull Request with fixes</label>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn">🔍 Analyze Logs & Fix Bugs</button>
+                </form>
+            </div>
+            
+            <!-- Status Section -->
+            <div class="section status-section" id="statusSection" style="display: none;">
+                <h2>📊 Analysis Status</h2>
+                <div id="statusDisplay" class="status-display">Ready to start analysis...</div>
+                <div class="loading" id="loadingIndicator">
+                    <div class="spinner"></div>
+                    <p>Analyzing logs and generating fixes...</p>
+                </div>
+            </div>
+            
+            <!-- Results Section -->
+            <div class="section" id="resultsSection" style="display: none;">
+                <h2>🐛 Bug Reports</h2>
+                <div id="bugReports"></div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>🔧 Bugfixer v2.0 - Log-Based Bug Detection & Automated Fixing</p>
+            <p><a href="/docs">API Documentation</a> | <a href="/api/health">Health Check</a></p>
+        </div>
+    </div>
+
+    <script>
+        // File upload functionality
+        const fileUpload = document.getElementById('fileUpload');
+        const fileInput = document.getElementById('logFile');
+        const logContent = document.getElementById('logContent');
+
+        fileUpload.addEventListener('click', () => fileInput.click());
+
+        fileUpload.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileUpload.classList.add('dragover');
+        });
+
+        fileUpload.addEventListener('dragleave', () => {
+            fileUpload.classList.remove('dragover');
+        });
+
+        fileUpload.addEventListener('drop', (e) => {
+            e.preventDefault();
+            fileUpload.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                logContent.value = e.target.result;
+                fileUpload.innerHTML = `<p>✅ File loaded: ${file.name}</p><p><small>Content loaded into text area below</small></p>`;
+            };
+            reader.readAsText(file);
+        }
+
+        // Form submission
+        document.getElementById('analysisForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const formData = new FormData(e.target);
+            const data = {
+                github_repo_url: formData.get('githubRepoUrl'),
+                github_token: formData.get('githubToken'),
+                log_content: formData.get('logContent'),
+                branch_name: formData.get('branchName'),
+                create_pr: formData.get('createPR') === 'on'
+            };
+
+            // Show status section
+            document.getElementById('statusSection').style.display = 'block';
+            document.getElementById('loadingIndicator').classList.add('show');
+            document.getElementById('statusDisplay').textContent = 'Starting analysis...';
+
+            try {
+                const response = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('statusDisplay').textContent =
+                        `Analysis started successfully!\nAnalysis ID: ${result.analysis_id}\nStatus: ${result.status}`;
+                } else {
+                    document.getElementById('statusDisplay').textContent =
+                        `Error: ${result.detail || 'Unknown error occurred'}`;
+                }
+            } catch (error) {
+                document.getElementById('statusDisplay').textContent =
+                    `Network error: ${error.message}`;
+            } finally {
+                document.getElementById('loadingIndicator').classList.remove('show');
+            }
+        });
+    </script>
+</body>
+</html>
